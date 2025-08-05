@@ -22,6 +22,8 @@ namespace BreweryAPI
         {
             services.AddControllers();
 
+            services.AddMemoryCache();
+
             services.AddApiVersioning(o =>
             {
                 o.AssumeDefaultVersionWhenUnspecified = true;
