@@ -26,5 +26,13 @@ namespace BreweryAPI.Logic
         {
             return _breweryRepository.GetBreweryByIdAsync(id);
         }
+        public Task<IEnumerable<Brewery>> SearchAsync(string query)
+        {
+            return _breweryRepository.SearchAsync(query);
+        }
+        public Task<IEnumerable<Brewery>> GetByCityAsync(string city)
+        {
+            return _breweryRepository.GetByCityAsync(city);
+        }
     }
 }
