@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using BreweryAPI.Models;
 using BreweryAPI.Repositories.Interfaces;
@@ -8,14 +10,22 @@ namespace BreweryAPI.Repositories
 {
     public class BreweryApiRepository : IBreweryRepository
     {
-        public Task<IEnumerable<Brewery>> GetAllBreweriesAsync()
+        private readonly HttpClient _httpClient;
+
+        public BreweryApiRepository(HttpClient httpClient)
         {
-            throw new NotImplementedException();
+            _httpClient = httpClient;
         }
 
-        public Task<Brewery?> GetBreweryByIdAsync(string id)
+        public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync()
         {
-            throw new NotImplementedException();
+            var list = await _httpClient.GetFromJsonAsync<List<Brewery>>("breweries?per_page=200");
+            return list ?? new List<Brewery>();
+        }
+
+        public async Task<Brewery?> GetBreweryByIdAsync(string id)
+        {
+            return await _httpClient.GetFromJsonAsync<Brewery>($"breweries/{Uri.EscapeDataString(id)}");
         }
     }
 }

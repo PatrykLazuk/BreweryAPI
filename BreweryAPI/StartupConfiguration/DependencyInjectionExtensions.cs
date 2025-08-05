@@ -15,7 +15,11 @@ namespace BreweryAPI.StartupConfiguration
         public static IServiceCollection AddBreweryDependencies(this IServiceCollection services)
         {
             services.AddScoped<IBreweryLogic, BreweryLogic>();
-            services.AddScoped<IBreweryRepository, BreweryApiRepository>();
+            //services.AddScoped<IBreweryRepository, BreweryApiRepository>();
+            services.AddHttpClient<IBreweryRepository, BreweryApiRepository>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.openbrewerydb.org/v1/");
+            });
 
             return services;
         }
