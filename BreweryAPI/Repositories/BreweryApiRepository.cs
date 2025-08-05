@@ -38,5 +38,26 @@ namespace BreweryAPI.Repositories
         {
             return await _httpClient.GetFromJsonAsync<Brewery>($"breweries/{Uri.EscapeDataString(id)}");
         }
+
+        public async Task<IEnumerable<Brewery>> SearchAsync(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return await GetAllBreweriesAsync();
+            }
+
+            var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries/search?query={Uri.EscapeDataString(query)}");
+            return result ?? new List<Brewery>();
+        }
+
+        public async Task<IEnumerable<Brewery>> GetByCityAsync(string city)
+        {
+            if (string.IsNullOrWhiteSpace(city))
+            {
+                return await GetAllBreweriesAsync();
+            }
+            var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries?by_city={Uri.EscapeDataString(city)}");
+            return result ?? new List<Brewery>();
+        }
     }
 }

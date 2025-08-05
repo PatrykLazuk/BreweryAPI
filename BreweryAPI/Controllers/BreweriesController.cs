@@ -21,10 +21,22 @@ namespace BreweryAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllBreweries()
+        public async Task<IActionResult> Get([FromQuery] string? search, [FromQuery] string? city)
         {
-            var breweries = await _breweryLogic.GetAllBreweriesAsync();
-            return Ok(breweries);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var breweries = await _breweryLogic.SearchAsync(search);
+                return Ok(breweries);
+            }
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                var breweries = await _breweryLogic.GetByCityAsync(city);
+                return Ok(breweries);
+            }
+
+            var allBreweries = await _breweryLogic.GetAllBreweriesAsync();
+            return Ok(allBreweries);
         }
 
         [HttpGet("{id}")]
