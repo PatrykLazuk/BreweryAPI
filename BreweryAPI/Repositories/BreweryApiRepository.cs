@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
@@ -58,6 +59,18 @@ namespace BreweryAPI.Repositories
             }
             var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries?by_city={Uri.EscapeDataString(city)}");
             return result ?? new List<Brewery>();
+        }
+
+        public async Task<IEnumerable<BreweryAutocomplete>> AutocompleteAsync(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Enumerable.Empty<BreweryAutocomplete>();
+            }
+
+            var result = await _httpClient.GetFromJsonAsync<List<BreweryAutocomplete>>(
+                $"breweries/autocomplete?query={Uri.EscapeDataString(query)}");
+            return result ?? new List<BreweryAutocomplete>();
         }
     }
 }
