@@ -8,7 +8,8 @@ namespace BreweryAPI.Logic.Interfaces
 {
     public interface IBreweryLogic
     {
-        Task<IEnumerable<Brewery>> GetAllBreweriesAsync(string? search, string? city, string? sortBy, double? userLat, double? userLng, int page, int pageSize);
+        Task<PagedResult<Brewery>> GetAllBreweriesAsync(
+            string? search, string? city, string? sortBy, double? userLat, double? userLng, int page, int pageSize);
         Task<Brewery?> GetBreweryByIdAsync(string id);
         Task<IEnumerable<Brewery>> SearchAsync(string query);
         Task<IEnumerable<Brewery>> GetByCityAsync(string city);

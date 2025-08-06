@@ -22,7 +22,7 @@ namespace BreweryAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(
+        public async Task<ActionResult<PagedResult<Brewery>>> Get(
             [FromQuery] string? search,
             [FromQuery] string? city,
             [FromQuery] string? sortBy,
@@ -32,7 +32,7 @@ namespace BreweryAPI.Controllers
             [FromQuery] int pageSize = 20)
         {
             page = page < 1 ? 1 : page;
-            pageSize = pageSize < 1 ? 20 : pageSize;
+            pageSize = pageSize < 1 ? 1 : (pageSize > 200 ? 200 : pageSize);
 
             var result = await _breweryLogic.GetAllBreweriesAsync(search, city, sortBy, userLat, userLng, page, pageSize);
             return Ok(result);
