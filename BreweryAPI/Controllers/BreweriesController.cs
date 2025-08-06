@@ -48,5 +48,15 @@ namespace BreweryAPI.Controllers
             }
             return Ok(brewery);
         }
+
+        [HttpGet("autocomplete")]
+        public async Task<ActionResult<IEnumerable<BreweryAutocomplete>>> Autocomplete([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return BadRequest(new { error = "Query cannot be empty." });
+
+            var results = await _breweryLogic.AutocompleteAsync(query);
+            return Ok(results);
+        }
     }
 }

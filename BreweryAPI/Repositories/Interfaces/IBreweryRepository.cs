@@ -12,5 +12,6 @@ namespace BreweryAPI.Repositories.Interfaces
         Task<Brewery?> GetBreweryByIdAsync(string id);
         Task<IEnumerable<Brewery>> SearchAsync(string query);
         Task<IEnumerable<Brewery>> GetByCityAsync(string city);
+        Task<IEnumerable<BreweryAutocomplete>> AutocompleteAsync(string query);
     }
 }

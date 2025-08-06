@@ -58,6 +58,11 @@ namespace BreweryAPI.Logic
             return _breweryRepository.GetByCityAsync(city);
         }
 
+        public async Task<IEnumerable<BreweryAutocomplete>> AutocompleteAsync(string query)
+        {
+            return await _breweryRepository.AutocompleteAsync(query);
+        }
+
         private IEnumerable<Brewery> Sort(IEnumerable<Brewery> breweries, string sortBy, double? lat, double? lng)
         {
             return sortBy.ToLower() switch
