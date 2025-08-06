@@ -12,6 +12,7 @@ namespace BreweryAPI
 
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(builder.Configuration)
+                .Enrich.FromLogContext()
                 .CreateLogger();
 
             try

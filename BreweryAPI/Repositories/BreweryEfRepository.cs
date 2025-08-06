@@ -57,7 +57,7 @@ namespace BreweryAPI.Repositories
         public async Task<IEnumerable<Brewery>> GetByCityAsync(string city)
         {
             return await _context.Breweries
-                .Where(b => b.City != null && b.City.Equals(city, StringComparison.OrdinalIgnoreCase))
+                .Where(b => b.City != null && b.City.ToLower() == city.ToLower())
                 .OrderBy(b => b.Name)
                 .ToListAsync();
         }

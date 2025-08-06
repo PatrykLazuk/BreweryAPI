@@ -28,8 +28,8 @@ namespace BreweryAPI.Controllers
         [HttpPost("token")]
         public IActionResult GetToken([FromBody] BreweryLoginRequest request)
         {
-            // Hardcoded user for presentation purposes
-            if (request.Username != "brewery" || request.Password != "secret")
+            var defaultUser = _configuration.GetSection("DefaultUser");
+            if (request.Username != defaultUser["Username"] || request.Password != defaultUser["Password"])
                 return Unauthorized(new { error = "Invalid credentials" });
 
             var jwtSettings = _configuration.GetSection("JwtSettings");
