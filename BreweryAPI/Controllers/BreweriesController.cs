@@ -27,9 +27,14 @@ namespace BreweryAPI.Controllers
             [FromQuery] string? city,
             [FromQuery] string? sortBy,
             [FromQuery] double? userLat,
-            [FromQuery] double? userLng)
+            [FromQuery] double? userLng,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var result = await _breweryLogic.GetAllBreweriesAsync(search, city, sortBy, userLat, userLng);
+            page = page < 1 ? 1 : page;
+            pageSize = pageSize < 1 ? 20 : pageSize;
+
+            var result = await _breweryLogic.GetAllBreweriesAsync(search, city, sortBy, userLat, userLng, page, pageSize);
             return Ok(result);
         }
 
