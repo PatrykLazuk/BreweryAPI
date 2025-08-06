@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Asp.Versioning;
 using BreweryAPI.Logic.Interfaces;
+using BreweryAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BreweryAPI.Controllers
@@ -21,22 +22,15 @@ namespace BreweryAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get([FromQuery] string? search, [FromQuery] string? city)
+        public async Task<IActionResult> Get(
+            [FromQuery] string? search,
+            [FromQuery] string? city,
+            [FromQuery] string? sortBy,
+            [FromQuery] double? userLat,
+            [FromQuery] double? userLng)
         {
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var breweries = await _breweryLogic.SearchAsync(search);
-                return Ok(breweries);
-            }
-
-            if (!string.IsNullOrWhiteSpace(city))
-            {
-                var breweries = await _breweryLogic.GetByCityAsync(city);
-                return Ok(breweries);
-            }
-
-            var allBreweries = await _breweryLogic.GetAllBreweriesAsync();
-            return Ok(allBreweries);
+            var result = await _breweryLogic.GetAllBreweriesAsync(search, city, sortBy, userLat, userLng);
+            return Ok(result);
         }
 
         [HttpGet("{id}")]

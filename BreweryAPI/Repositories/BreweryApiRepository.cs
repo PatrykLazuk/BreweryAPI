@@ -29,7 +29,7 @@ namespace BreweryAPI.Repositories
                 return cachedBreweries;
             }
 
-            var list = await _httpClient.GetFromJsonAsync<List<Brewery>>("breweries?per_page=200");
+            var list = await _httpClient.GetFromJsonAsync<List<Brewery>>("breweries?per_page=20");
             _cache.Set(AllBreweriesCacheKey, list, CacheDuration);
             return list ?? new List<Brewery>();
         }
