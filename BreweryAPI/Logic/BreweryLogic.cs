@@ -17,7 +17,7 @@ namespace BreweryAPI.Logic
             _breweryRepository = breweryRepository;
         }
 
-        public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync(string? search, string? city, string? sortBy, double? userLat, double? userLng, int page, int pageSize)
+        public async Task<PagedResult<Brewery>> GetAllBreweriesAsync(string? search, string? city, string? sortBy, double? userLat, double? userLng, int page, int pageSize)
         {
             IEnumerable<Brewery> data;
             if (!string.IsNullOrWhiteSpace(search))
@@ -30,9 +30,19 @@ namespace BreweryAPI.Logic
             if (!string.IsNullOrWhiteSpace(sortBy))
                 data = Sort(data, sortBy, userLat, userLng);
 
-            data = data.Skip((page - 1) * pageSize).Take(pageSize);
+            var totalCount = data.Count();
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
-            return data;
+            var items = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            return new PagedResult<Brewery>
+            {
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                Items = items
+            };
         }
 
         public Task<Brewery?> GetBreweryByIdAsync(string id)
