@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Asp.Versioning;
+using BreweryAPI.Data;
 using BreweryAPI.StartupConfiguration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,6 +26,9 @@ namespace BreweryAPI
 
             services.AddMemoryCache();
 
+            services.AddDbContext<BreweryDbContext>(options =>
+                options.UseSqlite(_configuration.GetConnectionString("DefaultConnection")));
+
             services.AddApiVersioning(o =>
             {
                 o.AssumeDefaultVersionWhenUnspecified = true;
@@ -32,7 +37,6 @@ namespace BreweryAPI
             });
 
             services.AddBreweryDependencies();
-
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -50,6 +54,13 @@ namespace BreweryAPI
             {
                 endpoints.MapControllers();
             });
+
+            using (var scope = app.ApplicationServices.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<BreweryDbContext>();
+                db.Database.Migrate(); // Ensure database is created and migrations are applied
+                DbSeeder.SeedAsync(db).Wait();
+            }
         }
     }
 }

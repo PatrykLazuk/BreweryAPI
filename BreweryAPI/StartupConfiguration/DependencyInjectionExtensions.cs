@@ -15,11 +15,14 @@ namespace BreweryAPI.StartupConfiguration
         public static IServiceCollection AddBreweryDependencies(this IServiceCollection services)
         {
             services.AddScoped<IBreweryLogic, BreweryLogic>();
-            //services.AddScoped<IBreweryRepository, BreweryApiRepository>();
-            services.AddHttpClient<IBreweryRepository, BreweryApiRepository>(client =>
-            {
-                client.BaseAddress = new Uri("https://api.openbrewerydb.org/v1/");
-            });
+            // Register the EF Core repository
+            services.AddScoped<IBreweryRepository, BreweryEfRepository>();
+
+            // Uncomment the following line if you want to use an external API repository instead
+            // services.AddHttpClient<IBreweryRepository, BreweryApiRepository>(client =>
+            // {
+            //     client.BaseAddress = new Uri("https://api.openbrewerydb.org/v1/");
+            // });
 
             return services;
         }

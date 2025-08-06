@@ -1,9 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace BreweryAPI.Models
 {
     public class Brewery
     {
+        [Key]
         [JsonPropertyName("id")]
         public string? Id { get; set; }
 
@@ -46,7 +48,6 @@ namespace BreweryAPI.Models
         [JsonPropertyName("website_url")]
         public string? WebsiteUrl { get; set; }
 
-        // Helper properties if needed
         [JsonIgnore]
         public double? LatitudeValue => Latitude;
 
