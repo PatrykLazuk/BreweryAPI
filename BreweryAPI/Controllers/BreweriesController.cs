@@ -11,6 +11,7 @@ namespace BreweryAPI.Controllers
 {
     [ApiController]
     [ApiVersion("1.0")]
+    [ApiVersion("2.0")]
     [Route("api/v{version:apiVersion}/[controller]")]
     public class BreweriesController : ControllerBase
     {
@@ -22,6 +23,7 @@ namespace BreweryAPI.Controllers
         }
 
         [HttpGet]
+        [ApiVersionNeutral]
         public async Task<ActionResult<PagedResult<Brewery>>> Get(
             [FromQuery] string? search,
             [FromQuery] string? city,
@@ -38,8 +40,10 @@ namespace BreweryAPI.Controllers
             return Ok(result);
         }
 
+        // v1 version of the endpoint
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetBreweryById(string id)
+        [MapToApiVersion("1.0")]
+        public async Task<IActionResult> GetBreweryByIdV1(string id)
         {
             var brewery = await _breweryLogic.GetBreweryByIdAsync(id);
             if (brewery == null)
@@ -49,7 +53,27 @@ namespace BreweryAPI.Controllers
             return Ok(brewery);
         }
 
+        // v2 version of the endpoint
+        [HttpGet("{id}")]
+        [MapToApiVersion("2.0")]
+        public async Task<IActionResult> GetBreweryByIdV2(string id)
+        {
+            var brewery = await _breweryLogic.GetBreweryByIdAsync(id);
+
+            if (brewery == null)
+                return NotFound();
+
+            var result = new BreweryV2Dto
+            {
+                Brewery = brewery,
+                Info = "This is a v2 response with additional information."
+            };
+
+            return Ok(result);
+        }
+
         [HttpGet("autocomplete")]
+        [ApiVersionNeutral]
         public async Task<ActionResult<IEnumerable<BreweryAutocomplete>>> Autocomplete([FromQuery] string query)
         {
             if (string.IsNullOrWhiteSpace(query))
