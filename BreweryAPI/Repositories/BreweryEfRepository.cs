@@ -18,9 +18,27 @@ namespace BreweryAPI.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync()
+        public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync(string? sortBy, double? userLat, double? userLng, int page, int pageSize)
         {
-            return await _context.Breweries.ToListAsync();
+            IQueryable<Brewery> query = _context.Breweries;
+
+            // Sortowanie w bazie (po "distance" sortowanie już w logice)
+            query = sortBy?.ToLower() switch
+            {
+                "name" => query.OrderBy(b => b.Name),
+                "city" => query.OrderBy(b => b.City),
+                _ => query.OrderBy(b => b.Name)
+            };
+
+            return await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            return await _context.Breweries.CountAsync();
         }
 
         public async Task<Brewery?> GetBreweryByIdAsync(string id)
@@ -31,13 +49,16 @@ namespace BreweryAPI.Repositories
         public async Task<IEnumerable<Brewery>> SearchAsync(string query)
         {
             return await _context.Breweries
-                .Where(b => b.Name != null && b.Name.Contains(query)).ToListAsync();
+                .Where(b => b.Name != null && b.Name.Contains(query))
+                .OrderBy(b => b.Name)
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Brewery>> GetByCityAsync(string city)
         {
             return await _context.Breweries
                 .Where(b => b.City != null && b.City.Equals(city, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(b => b.Name)
                 .ToListAsync();
         }
 
@@ -48,6 +69,7 @@ namespace BreweryAPI.Repositories
 
             return await _context.Breweries
                 .Where(b => b.Name != null && b.Name.ToLower().Contains(query.ToLower()))
+                .OrderBy(b => b.Name)
                 .Select(b => new BreweryAutocomplete
                 {
                     Id = b.Id,
