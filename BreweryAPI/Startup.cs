@@ -40,7 +40,7 @@ namespace BreweryAPI
             })
             .AddMvc();
 
-            services.AddBreweryDependencies();
+            services.AddBreweryDependencies(_configuration);
 
             services.AddJwtAuthentication(_configuration);
 

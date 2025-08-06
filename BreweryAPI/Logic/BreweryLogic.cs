@@ -40,9 +40,24 @@ namespace BreweryAPI.Logic
             }
             else
             {
-                // Tu paginacja i sortowanie już po stronie repozytorium!
-                data = await _breweryRepository.GetAllBreweriesAsync(sortBy, userLat, userLng, page, pageSize);
-                totalCount = await _breweryRepository.GetTotalCountAsync();
+                if (sortBy?.ToLower() == "distance" && userLat.HasValue && userLng.HasValue)
+                {
+                    var allData = await _breweryRepository.GetAllBreweriesAsync(null, null, null, 1, int.MaxValue);
+                    data = allData
+                        .OrderBy(b => GeoHelper.GetDistance(userLat.Value, userLng.Value, b.Latitude, b.Longitude));
+                    totalCount = data.Count();
+                }
+                else
+                {
+                    data = await _breweryRepository.GetAllBreweriesAsync(sortBy, userLat, userLng, page, pageSize);
+                    totalCount = await _breweryRepository.GetTotalCountAsync();
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(city)
+                || (sortBy?.ToLower() == "distance" && userLat.HasValue && userLng.HasValue))
+            {
+                data = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             }
 
             var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
