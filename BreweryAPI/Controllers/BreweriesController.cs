@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Asp.Versioning;
 using BreweryAPI.Logic.Interfaces;
 using BreweryAPI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BreweryAPI.Controllers
@@ -24,6 +25,7 @@ namespace BreweryAPI.Controllers
 
         [HttpGet]
         [ApiVersionNeutral]
+        [Authorize]
         public async Task<ActionResult<PagedResult<Brewery>>> Get(
             [FromQuery] string? search,
             [FromQuery] string? city,
@@ -43,6 +45,7 @@ namespace BreweryAPI.Controllers
         // v1 version of the endpoint
         [HttpGet("{id}")]
         [MapToApiVersion("1.0")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetBreweryByIdV1(string id)
         {
             var brewery = await _breweryLogic.GetBreweryByIdAsync(id);
@@ -56,6 +59,7 @@ namespace BreweryAPI.Controllers
         // v2 version of the endpoint
         [HttpGet("{id}")]
         [MapToApiVersion("2.0")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetBreweryByIdV2(string id)
         {
             var brewery = await _breweryLogic.GetBreweryByIdAsync(id);
@@ -74,6 +78,7 @@ namespace BreweryAPI.Controllers
 
         [HttpGet("autocomplete")]
         [ApiVersionNeutral]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<BreweryAutocomplete>>> Autocomplete([FromQuery] string query)
         {
             if (string.IsNullOrWhiteSpace(query))

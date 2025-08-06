@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using Asp.Versioning;
 using BreweryAPI.Data;
 using BreweryAPI.StartupConfiguration;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 
 namespace BreweryAPI
 {
@@ -39,6 +41,10 @@ namespace BreweryAPI
             .AddMvc();
 
             services.AddBreweryDependencies();
+
+            services.AddJwtAuthentication(_configuration);
+
+            services.AddAuthorization();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -50,6 +56,8 @@ namespace BreweryAPI
 
             app.UseHttpsRedirection();
             app.UseRouting();
+
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
