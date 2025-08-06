@@ -1,8 +1,8 @@
-# Brewery API (.NET 9)
+# Brewery API (.NET 9)
 
-A scalable, production-ready RESTful API for querying brewery information, designed for high code quality, maintainability, and extensibility.
+A scalable, production‑ready RESTful API for querying brewery information, built with a focus on code quality, maintainability, and extensibility.
 
-## Table of Contents
+## Table of Contents
 
 - [Project Overview](#project-overview)
 - [Features](#features)
@@ -20,74 +20,62 @@ A scalable, production-ready RESTful API for querying brewery information, desig
 
 ## Project Overview
 
-This API was built as part of a recruitment assignment for a senior .NET developer role.  
-It integrates with [OpenBreweryDB](https://www.openbrewerydb.org/documentation), stores data in SQLite via Entity Framework Core, and exposes well-structured endpoints for brewery lookup, search, sort, and autocomplete.
+This API was developed as part of a recruitment assignment for a .NET developer role.
+It integrates with the public [OpenBreweryDB](https://www.openbrewerydb.org/documentation), stores data locally in SQLite via Entity Framework Core, and exposes clean endpoints for brewery listing, search, sorting, and autocomplete.
 
-The project adheres to SOLID principles, is extensible, testable, and ready for production scenarios, including logging, error handling, and JWT-based authentication.
+The project follows SOLID principles, is fully test‑ready, and includes production‑grade features such as global error handling, structured logging, in‑memory caching, API versioning, and JWT‑based authentication.
 
 ---
 
 ## Features
 
-**Required:**
+### Core
 
-- Query breweries by name, city, or phone
-- Sort by name, city, or distance (optionally by user location)
-- Search functionality with in-memory caching
-- Dependency injection and abstraction via interfaces
-- 10-minute cache for data fetched from OpenBreweryDB
-- Consistent error handling
+- **Query breweries by name or city** (case‑insensitive)
+- **Sort** results by **name**, **city**, or **distance** (when user coordinates are supplied)
+- **Search** functionality with 10‑minute in‑memory cache of OpenBreweryDB data
+- **Dependency Injection** throughout (services wired via interfaces)
+- **Global error handling** middleware returning consistent JSON responses
 
-**Bonus:**
+### Bonus Implementations
 
-- Autocomplete endpoint for search
-- API Versioning (`v1`, `v2` with DTO extension example)
-- Structured logging with Serilog (console, easy to extend to files/cloud)
-- SQLite + Entity Framework Core as persistent backend
-- JWT authentication for securing endpoints
+- **Autocomplete** endpoint for fast type‑ahead suggestions (top 15 matches)
+- **API versioning** (`v1`, `v2` – v2 demonstrates an extended response DTO)
+- **Structured logging** with Serilog (console sink; easily extendable)
+- **SQLite + EF Core** persistent store with automatic migration & seeding
+- **JWT authentication** securing primary endpoints (sample user included)
+
+> **Note** : The phone number field from OpenBreweryDB is included in responses, but it is **not** a search/filter criterion.
 
 ---
 
 ## Project Structure
 
-```
+```text
 BreweryAPI/
-│
 ├── Controllers/
-│   ├── BreweriesController.cs
-│   └── AuthController.cs
-│
+│   ├── BreweriesController.cs         # v1 & v2 endpoints
+│   └── AuthController.cs              # JWT token issuance
 ├── Data/
-│   ├── BreweryDbContext.cs
-│   └── DbSeeder.cs
-│
+│   ├── BreweryDbContext.cs            # EF Core context (SQLite)
+│   └── DbSeeder.cs                    # Initial data load from OpenBreweryDB
 ├── Infrastructure/
-│   └── ErrorHandlingMiddleware.cs
-│
+│   └── ErrorHandlingMiddleware.cs     # Global exception handling
 ├── Logic/
-│   ├── BreweryLogic.cs
+│   ├── BreweryLogic.cs                # Business logic (filter, sort, paginate)
 │   └── Interfaces/IBreweryLogic.cs
-│
-├── Models/
-│   ├── Brewery.cs
-│   ├── BreweryAutocomplete.cs
-│   ├── BreweryV2Dto.cs
-│   ├── PagedResult.cs
-│   └── BreweryLoginRequest.cs
-│
+├── Models/                            # Domain & DTO classes
 ├── Repositories/
-│   ├── BreweryEfRepository.cs
-│   ├── BreweryApiRepository.cs
+│   ├── BreweryEfRepository.cs         # SQLite implementation
+│   ├── BreweryApiRepository.cs        # External API implementation
 │   └── Interfaces/IBreweryRepository.cs
-│
-├── StartupConfiguration/
+├── StartupConfiguration/              # Extension methods
 │   ├── DependencyInjectionExtensions.cs
 │   ├── ErrorHandlingExtensions.cs
 │   └── AuthenticationExtensions.cs
-│
-├── appsettings.json
-├── Program.cs
-└── Startup.cs
+├── appsettings.json                   # Configuration (DB, JWT, logging)
+├── Program.cs                         # Entry point, Serilog bootstrap
+└── Startup.cs                         # ConfigureServices / Configure
 ```
 
 ---
@@ -96,126 +84,135 @@ BreweryAPI/
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
-- SQLite (bundled; no manual setup required)
+- [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- No external database server needed (SQLite file `brewery.db` is created automatically)
 
-### Setup & Run
+### Setup & Run
 
-1. **Clone the repository**
+```bash
+# 1. Clone repository
+ git clone https://github.com/PatrykLazuk/BreweryAPI.git
+ cd BreweryAPI
 
-   ```sh
-   git clone https://github.com/yourusername/breweryapi.git
-   cd breweryapi
-   ```
+# 2. Restore dependencies
+ dotnet restore
 
-2. **Restore dependencies**
+# 3. Run (applies migrations & seeds DB on first launch)
+ dotnet run --launch-profile https
+```
 
-   ```sh
-   dotnet restore
-   ```
+The API will be available at **[https://localhost:7146](https://localhost:7146)** (HTTPS profile).
 
-3. **Apply migrations and seed the database (on first run)**
+Environment selection:
 
-   ```sh
-   dotnet run --launch-profile https
-   ```
-
-   - This will automatically create and seed the SQLite database with data from OpenBreweryDB.
-
-4. **API will be available at**
-
-   ```
-   https://localhost:7146
-   ```
+```bash
+# Run with external API as the live data source instead of SQLite
+DataSource=Api dotnet run --launch-profile https
+```
 
 ---
 
 ## Authentication
 
-- **Token Endpoint:**  
-  `POST /api/auth/token`  
-  Example request body:
+| Endpoint          | Method | Description                                        |
+| ----------------- | ------ | -------------------------------------------------- |
+| `/api/auth/token` | `POST` | Obtain JWT token (send JSON body with credentials) |
 
-  ```json
-  { "username": "brewery", "password": "secret" }
-  ```
+**Sample request body**
 
-  > Returns a JWT to be used in the `Authorization: Bearer ...` header for protected endpoints.
+```json
+{ "username": "brewery", "password": "secret" }
+```
 
-- **Secured Endpoints:**  
-  The main `GET /api/v{version}/breweries` endpoint requires authentication.
+- On success, the response contains an `access_token` to be passed in the
+  `Authorization: Bearer <token>` header.
+- Primary brewery endpoints require a valid token; autocomplete and version‑info are public.
 
-- **Test User:**
-  - Username: `brewery`
-  - Password: `secret`
+### Demo Credentials
+
+| Username | Password |
+| -------- | -------- |
+| brewery  | secret   |
 
 ---
 
 ## API Usage
 
-### Get all breweries (paginated, sorted, filtered)
+### List Breweries (paginated, sortable, searchable)
 
-```
+```http
 GET /api/v1/breweries?search=ale&city=Boston&sortBy=name&page=1&pageSize=20
-Authorization: Bearer {token}
+Authorization: Bearer <token>
 ```
 
-### Get a brewery by ID
+**Query parameters**
 
-```
+| Name                 | Description                    | Example                                        |
+| -------------------- | ------------------------------ | ---------------------------------------------- |
+| `search`             | Partial name filter            | `search=ale`                                   |
+| `city`               | Filter by exact city           | `city=Boston`                                  |
+| `sortBy`             | `name` \| `city` \| `distance` | `sortBy=distance&userLat=42.36&userLng=-71.06` |
+| `userLat`, `userLng` | Coordinates for distance sort  |                                                |
+| `page`, `pageSize`   | Pagination (default 1 / 20)    |                                                |
+
+### Get Brewery by ID
+
+```http
 GET /api/v1/breweries/{id}
-GET /api/v2/breweries/{id}  // v2 returns additional fields
+GET /api/v2/breweries/{id}   # v2 wraps the response in an extended DTO
 ```
 
-### Autocomplete (open, unauthenticated)
+### Autocomplete (public)
 
-```
+```http
 GET /api/v1/breweries/autocomplete?query=dog
 ```
 
-### API Versioning Example
-
-- `/api/v1/breweries/{id}` - basic brewery info
-- `/api/v2/breweries/{id}` - wraps the result in a DTO with extra fields
+Returns up to 15 matching `{ id, name }` pairs.
 
 ---
 
 ## API Versioning
 
-Implemented using [Asp.Versioning.Mvc](https://github.com/dotnet/aspnet-api-versioning).
+Implemented via **ASP.NET API Versioning** using URL segments:
 
-- **URL segment versioning**: e.g., `/api/v1/breweries`, `/api/v2/breweries`
-- New versions can extend/override endpoints for backward compatibility.
+- **v1** – baseline contract
+- **v2** – example of a backward‑compatible extension (extra field in response)
+
+Clients can continue calling `/api/v1/...` unchanged while newer clients adopt `/api/v2/...`.
 
 ---
 
 ## Error Handling & Logging
 
-- **Global Error Handling:**  
-  All unhandled exceptions are logged and returned as generic error responses (prevents leaking sensitive info).
-- **Serilog:**  
-  Logs to the console; configuration in `appsettings.json`.  
-  Additional sinks (file, cloud, etc.) can be enabled with minimal changes.
+- **Global error middleware** captures unhandled exceptions and returns a sanitized JSON error (HTTP 500), while logging details for diagnostics.
+- **Serilog** is configured via _appsettings.json_ to log to the console with a minimum level of Information. Additional sinks (file, Seq, cloud) can be added with a one‑line change.
 
 ---
 
 ## Design Decisions
 
-- **SOLID Principles:**  
-  Clear separation of concerns via Logic, Repositories, Controllers, etc.
-- **Extensibility:**  
-  Dependency injection for all services; new features/endpoints are easy to add.
-- **Performance:**  
-  Uses in-memory and distributed caching, pagination, and efficient database queries.
-- **Testability:**  
-  Logic and repository layers are fully abstracted, ready for unit/integration testing.
+- **SOLID & Clean Architecture** – responsibilities divided among Controllers, Logic, and Repositories; dependencies inverted via interfaces.
+- **Extensibility** – swapping the data source (SQLite ↔︎ live API) is a configuration change, not a code change.
+- **Performance** – leverages in‑memory caching, pagination, and indexed queries; ready for future distributed cache if needed.
+- **Security** – JWT authentication follows standard validation (issuer, audience, key) and can integrate with external identity providers.
 
 ---
 
 ## Testing & Extensibility
 
-- **Unit tests** can be easily added (project supports dependency injection throughout).
-- **Database can be swapped** (e.g., to SQL Server/Postgres) by changing EF Core provider and connection string.
-- **Authentication** uses industry-standard JWT, easy to integrate with other identity providers.
+- **Unit Testing Ready** – abstractions allow mocking repositories or logic for isolated tests.
+- **Database Agnostic** – replace SQLite with SQL Server/PostgreSQL by changing EF Core provider and connection string.
+- **CI/CD Friendly** – deterministic startup (automatic migrations, seeding) enables repeatable deployments and containerization.
 
 ---
+
+## Contact
+
+For questions or feedback, please open an issue or reach out via GitHub.
+
+**Author:** [Patryk Lazuk](https://github.com/PatrykLazuk)
+
+---
+
+© 2025 Patryk Lazuk. Licensed for evaluation purposes.
