@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using BreweryAPI.Helpers;
 using BreweryAPI.Models;
 using BreweryAPI.Repositories.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
@@ -21,6 +22,27 @@ namespace BreweryAPI.Repositories
         {
             _httpClient = httpClient;
             _cache = cache;
+        }
+
+        public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync(string? sortBy, double? userLat, double? userLng, int page, int pageSize)
+        {
+            var list = await GetAllBreweriesAsync();
+            IEnumerable<Brewery> sorted = sortBy?.ToLower() switch
+            {
+                "name" => list.OrderBy(b => b.Name),
+                "city" => list.OrderBy(b => b.City),
+                "distance" when userLat.HasValue && userLng.HasValue =>
+                    list.OrderBy(b => GeoHelper.GetDistance(userLat.Value, userLng.Value, b.Latitude, b.Longitude)),
+                _ => list.OrderBy(b => b.Name)
+            };
+
+            return sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        }
+
+        public async Task<int> GetTotalCountAsync()
+        {
+            var list = await GetAllBreweriesAsync();
+            return list.Count();
         }
 
         public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync()

@@ -1,4 +1,6 @@
+using System;
 using Microsoft.AspNetCore.Builder;
+using Serilog;
 
 namespace BreweryAPI
 {
@@ -8,13 +10,37 @@ namespace BreweryAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            var startup = new Startup(builder.Configuration);
-            startup.ConfigureServices(builder.Services);
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(builder.Configuration)
+                .CreateLogger();
 
-            var app = builder.Build();
-            startup.Configure(app, builder.Environment);
+            try
+            {
+                Log.Information("Starting BreweryAPI");
 
-            app.Run();
+                // Configure Serilog as the logging provider
+                builder.Host.UseSerilog();
+
+                var startup = new Startup(builder.Configuration);
+                startup.ConfigureServices(builder.Services);
+
+                var app = builder.Build();
+                startup.Configure(app, builder.Environment);
+
+                app.Run();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Application BreweryAPI failed to start");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+
+
+
+
         }
     }
 }
