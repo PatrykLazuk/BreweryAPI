@@ -196,6 +196,7 @@ Clients can continue calling `/api/v1/...` unchanged while newer clients adopt `
 - **Extensibility** – swapping the data source (SQLite ↔︎ live API) is a configuration change, not a code change.
 - **Performance** – leverages in‑memory caching, pagination, and indexed queries; ready for future distributed cache if needed.
 - **Security** – JWT authentication follows standard validation (issuer, audience, key) and can integrate with external identity providers.
+- **AI‑assisted Development** – GitHub Copilot was used as an AI pair‑programming tool to boost productivity; all suggestions were critically reviewed and refactored to meet the project’s coding standards and architectural guidelines.
 
 ---
 
