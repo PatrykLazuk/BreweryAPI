@@ -1,5 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Serilog;
 
 namespace BreweryAPI
@@ -19,14 +21,17 @@ namespace BreweryAPI
             {
                 Log.Information("Starting BreweryAPI");
 
-                // Configure Serilog as the logging provider
+                // Setup Serilog
                 builder.Host.UseSerilog();
 
                 var startup = new Startup(builder.Configuration);
                 startup.ConfigureServices(builder.Services);
 
                 var app = builder.Build();
-                startup.Configure(app, builder.Environment);
+                
+                // Get logger for startup
+                var logger = app.Services.GetRequiredService<ILogger<Startup>>();
+                startup.Configure(app, builder.Environment, logger);
 
                 app.Run();
             }
@@ -38,10 +43,6 @@ namespace BreweryAPI
             {
                 Log.CloseAndFlush();
             }
-
-
-
-
         }
     }
 }

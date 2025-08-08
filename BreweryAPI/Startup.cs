@@ -1,18 +1,12 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Asp.Versioning;
-using BreweryAPI.Data;
+using BreweryAPI.Models;
 using BreweryAPI.StartupConfiguration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 
 namespace BreweryAPI
 {
@@ -25,29 +19,16 @@ namespace BreweryAPI
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-
             services.AddMemoryCache();
-
-            services.AddDbContext<BreweryDbContext>(options =>
-                options.UseSqlite(_configuration.GetConnectionString("DefaultConnection")));
-
-            services.AddApiVersioning(o =>
-            {
-                o.DefaultApiVersion = new ApiVersion(1, 0);
-                o.AssumeDefaultVersionWhenUnspecified = true;
-                o.ReportApiVersions = true;
-                o.ApiVersionReader = new UrlSegmentApiVersionReader();
-            })
-            .AddMvc();
-
+            services.AddCorsPolicy(_configuration);
+            services.AddDatabase(_configuration);
+            services.AddApiVersioningWithDefaults();
             services.AddBreweryDependencies(_configuration);
-
             services.AddJwtAuthentication(_configuration);
-
             services.AddAuthorization();
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public async void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             app.UseGlobalErrorHandling();
 
@@ -55,8 +36,9 @@ namespace BreweryAPI
                 app.UseDeveloperExceptionPage();
 
             app.UseHttpsRedirection();
+            app.UseSecurityHeaders();
             app.UseRouting();
-
+            app.UseCors(Constants.Cors.DefaultPolicyName);
             app.UseAuthentication();
             app.UseAuthorization();
 
@@ -65,12 +47,8 @@ namespace BreweryAPI
                 endpoints.MapControllers();
             });
 
-            using (var scope = app.ApplicationServices.CreateScope())
-            {
-                var db = scope.ServiceProvider.GetRequiredService<BreweryDbContext>();
-                db.Database.Migrate(); // Ensure database is created and migrations are applied
-                DbSeeder.SeedAsync(db).Wait();
-            }
+            // Setup database
+            await app.InitializeDatabaseAsync(logger);
         }
     }
 }

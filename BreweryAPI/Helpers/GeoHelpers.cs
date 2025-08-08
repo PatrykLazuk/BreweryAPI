@@ -9,7 +9,7 @@ namespace BreweryAPI.Helpers
             if (!lat2.HasValue || !lon2.HasValue)
                 return double.MaxValue;
 
-            const double R = 6371; // Radius of the Earth in kilometers
+            const double R = 6371; // Earth radius in km
             var dLat = ToRad(lat2.Value - lat1);
             var dLon = ToRad(lon2.Value - lon1);
             var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
