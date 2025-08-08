@@ -1,6 +1,6 @@
 # Brewery API (.NET 9)
 
-A scalable, production‑ready RESTful API for querying brewery information, built with a focus on code quality, maintainability, and extensibility.
+A scalable, production-ready RESTful API for querying brewery information, built with a focus on code quality, maintainability, and extensibility.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ A scalable, production‑ready RESTful API for querying brewery information, bui
 This API was developed as part of a recruitment assignment for a .NET developer role.
 It integrates with the public [OpenBreweryDB](https://www.openbrewerydb.org/documentation), stores data locally in SQLite via Entity Framework Core, and exposes clean endpoints for brewery listing, search, sorting, and autocomplete.
 
-The project follows SOLID principles, is fully test‑ready, and includes production‑grade features such as global error handling, structured logging, in‑memory caching, API versioning, and JWT‑based authentication.
+The project follows SOLID principles, is fully test-ready, and includes production-grade features such as global error handling, structured logging, in-memory caching, API versioning, and JWT-based authentication.
 
 ---
 
@@ -31,21 +31,21 @@ The project follows SOLID principles, is fully test‑ready, and includes produc
 
 ### Core
 
-- **Query breweries by name or city** (case‑insensitive)
+- **Query breweries by name or city** (case-insensitive)
 - **Sort** results by **name**, **city**, or **distance** (when user coordinates are supplied)
-- **Search** functionality with 10‑minute in‑memory cache of OpenBreweryDB data
+- **Search** functionality with 10-minute in-memory cache of OpenBreweryDB data (when using API mode)
 - **Dependency Injection** throughout (services wired via interfaces)
 - **Global error handling** middleware returning consistent JSON responses
 
 ### Bonus Implementations
 
-- **Autocomplete** endpoint for fast type‑ahead suggestions (top 15 matches)
+- **Autocomplete** endpoint for fast type-ahead suggestions (top 15 matches)
 - **API versioning** (`v1`, `v2` – v2 demonstrates an extended response DTO)
 - **Structured logging** with Serilog (console sink; easily extendable)
 - **SQLite + EF Core** persistent store with automatic migration & seeding
 - **JWT authentication** securing primary endpoints (sample user included)
 
-> **Note** : The phone number field from OpenBreweryDB is included in responses, but it is **not** a search/filter criterion.
+> **Note**: The phone number field from OpenBreweryDB is included in responses, but it is **not** a search/filter criterion.
 
 ---
 
@@ -72,7 +72,11 @@ BreweryAPI/
 ├── StartupConfiguration/              # Extension methods
 │   ├── DependencyInjectionExtensions.cs
 │   ├── ErrorHandlingExtensions.cs
-│   └── AuthenticationExtensions.cs
+│   ├── AuthenticationExtensions.cs
+│   ├── CorsExtensions.cs
+│   ├── DatabaseExtensions.cs
+│   ├── ApiVersioningExtensions.cs
+│   └── SecurityExtensions.cs
 ├── appsettings.json                   # Configuration (DB, JWT, logging)
 ├── Program.cs                         # Entry point, Serilog bootstrap
 └── Startup.cs                         # ConfigureServices / Configure
@@ -91,22 +95,23 @@ BreweryAPI/
 
 ```bash
 # 1. Clone repository
- git clone https://github.com/PatrykLazuk/BreweryAPI.git
- cd BreweryAPI
+git clone https://github.com/PatrykLazuk/BreweryAPI.git
+cd BreweryAPI
 
 # 2. Restore dependencies
- dotnet restore
+dotnet restore
 
 # 3. Run (applies migrations & seeds DB on first launch)
- dotnet run --launch-profile https
+dotnet run --launch-profile https
 ```
 
 The API will be available at **[https://localhost:7146](https://localhost:7146)** (HTTPS profile).
 
-Environment selection:
+#### Environment selection
+
+By default, the API uses SQLite as the data source. To use the live OpenBreweryDB API instead, set the `DataSource` environment variable:
 
 ```bash
-# Run with external API as the live data source instead of SQLite
 DataSource=Api dotnet run --launch-profile https
 ```
 
@@ -126,7 +131,7 @@ DataSource=Api dotnet run --launch-profile https
 
 - On success, the response contains an `access_token` to be passed in the
   `Authorization: Bearer <token>` header.
-- Primary brewery endpoints require a valid token; autocomplete and version‑info are public.
+- Primary brewery endpoints require a valid token; autocomplete and version-info are public.
 
 ### Demo Credentials
 
@@ -155,12 +160,18 @@ Authorization: Bearer <token>
 | `userLat`, `userLng` | Coordinates for distance sort  |                                                |
 | `page`, `pageSize`   | Pagination (default 1 / 20)    |                                                |
 
+- `sortBy=distance` requires both `userLat` and `userLng` to be provided.
+- If both `search` and `city` are omitted, all breweries are returned (paginated).
+
 ### Get Brewery by ID
 
 ```http
 GET /api/v1/breweries/{id}
 GET /api/v2/breweries/{id}   # v2 wraps the response in an extended DTO
 ```
+
+- v1 returns the brewery object.
+- v2 returns an object with `brewery` and an additional `info` field.
 
 ### Autocomplete (public)
 
@@ -170,6 +181,9 @@ GET /api/v1/breweries/autocomplete?query=dog
 
 Returns up to 15 matching `{ id, name }` pairs.
 
+- No authentication required.
+- Query must be at least 2 characters.
+
 ---
 
 ## API Versioning
@@ -177,7 +191,7 @@ Returns up to 15 matching `{ id, name }` pairs.
 Implemented via **ASP.NET API Versioning** using URL segments:
 
 - **v1** – baseline contract
-- **v2** – example of a backward‑compatible extension (extra field in response)
+- **v2** – example of a backward-compatible extension (extra field in response)
 
 Clients can continue calling `/api/v1/...` unchanged while newer clients adopt `/api/v2/...`.
 
@@ -186,7 +200,7 @@ Clients can continue calling `/api/v1/...` unchanged while newer clients adopt `
 ## Error Handling & Logging
 
 - **Global error middleware** captures unhandled exceptions and returns a sanitized JSON error (HTTP 500), while logging details for diagnostics.
-- **Serilog** is configured via _appsettings.json_ to log to the console with a minimum level of Information. Additional sinks (file, Seq, cloud) can be added with a one‑line change.
+- **Serilog** is configured via _appsettings.json_ to log to the console with a minimum level of Information. Additional sinks (file, Seq, cloud) can be added with a one-line change.
 
 ---
 
@@ -194,9 +208,9 @@ Clients can continue calling `/api/v1/...` unchanged while newer clients adopt `
 
 - **SOLID & Clean Architecture** – responsibilities divided among Controllers, Logic, and Repositories; dependencies inverted via interfaces.
 - **Extensibility** – swapping the data source (SQLite ↔︎ live API) is a configuration change, not a code change.
-- **Performance** – leverages in‑memory caching, pagination, and indexed queries; ready for future distributed cache if needed.
+- **Performance** – leverages in-memory caching, pagination, and indexed queries; ready for future distributed cache if needed.
 - **Security** – JWT authentication follows standard validation (issuer, audience, key) and can integrate with external identity providers.
-- **AI‑assisted Development** – GitHub Copilot was used as an AI pair‑programming tool to boost productivity; all suggestions were critically reviewed and refactored to meet the project’s coding standards and architectural guidelines.
+- **AI-assisted Development** – Cursor was used as an AI pair-programming tool to boost productivity; all suggestions were critically reviewed and refactored to meet the project's coding standards and architectural guidelines.
 
 ---
 

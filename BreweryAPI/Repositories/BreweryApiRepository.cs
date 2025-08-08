@@ -8,6 +8,7 @@ using BreweryAPI.Helpers;
 using BreweryAPI.Models;
 using BreweryAPI.Repositories.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace BreweryAPI.Repositories
 {
@@ -15,28 +16,23 @@ namespace BreweryAPI.Repositories
     {
         private readonly HttpClient _httpClient;
         private readonly IMemoryCache _cache;
-        private static readonly string AllBreweriesCacheKey = "all-breweries";
-        private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+        private readonly ILogger<BreweryApiRepository> _logger;
 
-        public BreweryApiRepository(HttpClient httpClient, IMemoryCache cache)
+        public BreweryApiRepository(HttpClient httpClient, IMemoryCache cache, ILogger<BreweryApiRepository> logger)
         {
-            _httpClient = httpClient;
-            _cache = cache;
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync(string? sortBy, double? userLat, double? userLng, int page, int pageSize)
         {
             var list = await GetAllBreweriesAsync();
-            IEnumerable<Brewery> sorted = sortBy?.ToLower() switch
-            {
-                "name" => list.OrderBy(b => b.Name),
-                "city" => list.OrderBy(b => b.City),
-                "distance" when userLat.HasValue && userLng.HasValue =>
-                    list.OrderBy(b => GeoHelper.GetDistance(userLat.Value, userLng.Value, b.Latitude, b.Longitude)),
-                _ => list.OrderBy(b => b.Name)
-            };
+            
+            // Sort the results
+            var sorted = list.ApplySorting(sortBy, userLat, userLng);
 
-            return sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            return sorted.ApplyPagination(page, pageSize).ToList();
         }
 
         public async Task<int> GetTotalCountAsync()
@@ -47,19 +43,62 @@ namespace BreweryAPI.Repositories
 
         public async Task<IEnumerable<Brewery>> GetAllBreweriesAsync()
         {
-            if (_cache.TryGetValue(AllBreweriesCacheKey, out List<Brewery>? cachedBreweries) && cachedBreweries != null)
+            if (_cache.TryGetValue(Constants.Cache.AllBreweriesKey, out List<Brewery>? cachedBreweries) && cachedBreweries != null)
             {
                 return cachedBreweries;
             }
 
-            var list = await _httpClient.GetFromJsonAsync<List<Brewery>>("breweries?per_page=200");
-            _cache.Set(AllBreweriesCacheKey, list, CacheDuration);
-            return list ?? new List<Brewery>();
+            try
+            {
+                var list = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries?per_page={Constants.Api.MaxBreweriesPerPage}");
+                var breweries = list ?? new List<Brewery>();
+                _cache.Set(Constants.Cache.AllBreweriesKey, breweries, TimeSpan.FromMinutes(Constants.Cache.AllBreweriesCacheMinutes));
+                return breweries;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to fetch breweries from external API");
+                return new List<Brewery>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Timeout while fetching breweries from external API");
+                return new List<Brewery>();
+            }
         }
 
         public async Task<Brewery?> GetBreweryByIdAsync(string id)
         {
-            return await _httpClient.GetFromJsonAsync<Brewery>($"breweries/{Uri.EscapeDataString(id)}");
+            if (string.IsNullOrWhiteSpace(id))
+                return null;
+
+            // Check cache first
+            var cacheKey = $"{Constants.Cache.BreweryPrefix}{id}";
+            if (_cache.TryGetValue(cacheKey, out Brewery? cachedBrewery) && cachedBrewery != null)
+            {
+                return cachedBrewery;
+            }
+
+            try
+            {
+                var brewery = await _httpClient.GetFromJsonAsync<Brewery>($"breweries/{Uri.EscapeDataString(id)}");
+                if (brewery != null)
+                {
+                    // Cache for 5 minutes
+                    _cache.Set(cacheKey, brewery, TimeSpan.FromMinutes(Constants.Cache.IndividualBreweryCacheMinutes));
+                }
+                return brewery;
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to fetch brewery with ID {BreweryId} from external API", id);
+                return null;
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Timeout while fetching brewery with ID {BreweryId} from external API", id);
+                return null;
+            }
         }
 
         public async Task<IEnumerable<Brewery>> SearchAsync(string query)
@@ -69,8 +108,21 @@ namespace BreweryAPI.Repositories
                 return await GetAllBreweriesAsync();
             }
 
-            var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries/search?query={Uri.EscapeDataString(query)}");
-            return result ?? new List<Brewery>();
+            try
+            {
+                var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries/search?query={Uri.EscapeDataString(query)}");
+                return result ?? new List<Brewery>();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to search breweries with query '{Query}' from external API", query);
+                return new List<Brewery>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Timeout while searching breweries with query '{Query}' from external API", query);
+                return new List<Brewery>();
+            }
         }
 
         public async Task<IEnumerable<Brewery>> GetByCityAsync(string city)
@@ -79,8 +131,22 @@ namespace BreweryAPI.Repositories
             {
                 return await GetAllBreweriesAsync();
             }
-            var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries?by_city={Uri.EscapeDataString(city)}");
-            return result ?? new List<Brewery>();
+
+            try
+            {
+                var result = await _httpClient.GetFromJsonAsync<List<Brewery>>($"breweries?by_city={Uri.EscapeDataString(city)}");
+                return result ?? new List<Brewery>();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to fetch breweries for city '{City}' from external API", city);
+                return new List<Brewery>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Timeout while fetching breweries for city '{City}' from external API", city);
+                return new List<Brewery>();
+            }
         }
 
         public async Task<IEnumerable<BreweryAutocomplete>> AutocompleteAsync(string query)
@@ -90,9 +156,22 @@ namespace BreweryAPI.Repositories
                 return Enumerable.Empty<BreweryAutocomplete>();
             }
 
-            var result = await _httpClient.GetFromJsonAsync<List<BreweryAutocomplete>>(
-                $"breweries/autocomplete?query={Uri.EscapeDataString(query)}");
-            return result ?? new List<BreweryAutocomplete>();
+            try
+            {
+                var result = await _httpClient.GetFromJsonAsync<List<BreweryAutocomplete>>(
+                    $"breweries/autocomplete?query={Uri.EscapeDataString(query)}");
+                return result ?? new List<BreweryAutocomplete>();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "Failed to autocomplete breweries with query '{Query}' from external API", query);
+                return new List<BreweryAutocomplete>();
+            }
+            catch (TaskCanceledException ex)
+            {
+                _logger.LogError(ex, "Timeout while autocompleting breweries with query '{Query}' from external API", query);
+                return new List<BreweryAutocomplete>();
+            }
         }
     }
 }

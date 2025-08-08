@@ -1,15 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 using BreweryAPI.Models;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BreweryAPI.Controllers
@@ -22,36 +17,69 @@ namespace BreweryAPI.Controllers
 
         public AuthController(IConfiguration configuration)
         {
-            _configuration = configuration;
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         [HttpPost("token")]
         public IActionResult GetToken([FromBody] BreweryLoginRequest request)
         {
-            var defaultUser = _configuration.GetSection("DefaultUser");
-            if (request.Username != defaultUser["Username"] || request.Password != defaultUser["Password"])
-                return Unauthorized(new { error = "Invalid credentials" });
+            if (request == null)
+                return BadRequest(new { error = Constants.ErrorMessages.RequestBodyRequired });
 
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            var key = Convert.FromBase64String(jwtSettings["SecretKey"]!);
-            var creds = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
+            // Check model validation
+            if (!ModelState.IsValid)
             {
-                new Claim(ClaimTypes.Name, request.Username),
-                new Claim(ClaimTypes.Role, "User")
-            };
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(new { error = Constants.ErrorMessages.ValidationFailed, details = errors });
+            }
 
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
-                signingCredentials: creds);
+            var defaultUser = _configuration.GetSection(Constants.Configuration.DefaultUserSection);
+            var expectedUsername = defaultUser[Constants.Configuration.UsernameKey];
+            var expectedPassword = defaultUser[Constants.Configuration.PasswordKey];
 
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            if (string.IsNullOrEmpty(expectedUsername) || string.IsNullOrEmpty(expectedPassword))
+                return StatusCode(500, new { error = Constants.ErrorMessages.ServerConfigurationError });
 
-            return Ok(new { access_token = tokenString });
+            if (request.Username != expectedUsername || request.Password != expectedPassword)
+                return Unauthorized(new { error = Constants.ErrorMessages.InvalidCredentials });
+
+            var jwtSettings = _configuration.GetSection(Constants.Configuration.JwtSettingsSection);
+            var secretKey = jwtSettings[Constants.Configuration.SecretKey];
+            var issuer = jwtSettings[Constants.Configuration.IssuerKey];
+            var audience = jwtSettings[Constants.Configuration.AudienceKey];
+
+            if (string.IsNullOrEmpty(secretKey) || string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience))
+                return StatusCode(500, new { error = Constants.ErrorMessages.JwtConfigurationError });
+
+            try
+            {
+                var key = Convert.FromBase64String(secretKey);
+                var creds = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256);
+
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.Name, request.Username),
+                    new Claim(ClaimTypes.Role, "User")
+                };
+
+                var token = new JwtSecurityToken(
+                    issuer: issuer,
+                    audience: audience,
+                    claims: claims,
+                    expires: DateTime.UtcNow.AddHours(Constants.Security.JwtExpirationHours),
+                    signingCredentials: creds);
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+                return Ok(new { access_token = tokenString });
+            }
+            catch (FormatException)
+            {
+                return StatusCode(500, new { error = Constants.ErrorMessages.InvalidJwtConfiguration });
+            }
         }
     }
 }

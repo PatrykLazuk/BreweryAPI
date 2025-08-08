@@ -15,7 +15,7 @@ namespace BreweryAPI.Logic
 
         public BreweryLogic(IBreweryRepository breweryRepository)
         {
-            _breweryRepository = breweryRepository;
+            _breweryRepository = breweryRepository ?? throw new ArgumentNullException(nameof(breweryRepository));
         }
 
         public async Task<PagedResult<Brewery>> GetAllBreweriesAsync(
@@ -24,84 +24,74 @@ namespace BreweryAPI.Logic
             IEnumerable<Brewery> data;
             int totalCount;
 
+            // Filter by search term or city
             if (!string.IsNullOrWhiteSpace(search))
             {
                 data = await _breweryRepository.SearchAsync(search);
                 totalCount = data.Count();
-                data = ApplySorting(data, sortBy, userLat, userLng);
-                data = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                data = data.ApplySorting(sortBy, userLat, userLng);
             }
             else if (!string.IsNullOrWhiteSpace(city))
             {
                 data = await _breweryRepository.GetByCityAsync(city);
                 totalCount = data.Count();
-                data = ApplySorting(data, sortBy, userLat, userLng);
-                data = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                data = data.ApplySorting(sortBy, userLat, userLng);
             }
             else
             {
-                if (sortBy?.ToLower() == "distance" && userLat.HasValue && userLng.HasValue)
+                // Special case: distance sorting needs all breweries
+                if (sortBy.RequiresCoordinates() && (userLat, userLng).HasValidCoordinates())
                 {
-                    var allData = await _breweryRepository.GetAllBreweriesAsync(null, null, null, 1, int.MaxValue);
-                    data = allData
-                        .OrderBy(b => GeoHelper.GetDistance(userLat.Value, userLng.Value, b.Latitude, b.Longitude));
+                    var allData = await _breweryRepository.GetAllBreweriesAsync(null, null, null, Constants.Pagination.DefaultPage, int.MaxValue);
+                    data = allData.ApplySorting(sortBy, userLat, userLng);
                     totalCount = data.Count();
                 }
                 else
                 {
+                    // Standard pagination from repository
                     data = await _breweryRepository.GetAllBreweriesAsync(sortBy, userLat, userLng, page, pageSize);
                     totalCount = await _breweryRepository.GetTotalCountAsync();
+                    
+                    // Repository already applied pagination
+                    return data.CreatePagedResult(totalCount, page, pageSize);
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(search) || !string.IsNullOrWhiteSpace(city)
-                || (sortBy?.ToLower() == "distance" && userLat.HasValue && userLng.HasValue))
-            {
-                data = data.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-            }
-
-            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-            return new PagedResult<Brewery>
-            {
-                TotalCount = totalCount,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = totalPages,
-                Items = data
-            };
+            // Apply pagination to filtered results
+            var paginatedData = data.ApplyPagination(page, pageSize).ToList();
+            return paginatedData.CreatePagedResult(totalCount, page, pageSize);
         }
 
         public Task<Brewery?> GetBreweryByIdAsync(string id)
         {
+            if (string.IsNullOrWhiteSpace(id))
+                return Task.FromResult<Brewery?>(null);
+                
             return _breweryRepository.GetBreweryByIdAsync(id);
         }
 
         public Task<IEnumerable<Brewery>> SearchAsync(string query)
         {
+            if (string.IsNullOrWhiteSpace(query))
+                return Task.FromResult<IEnumerable<Brewery>>(Enumerable.Empty<Brewery>());
+                
             return _breweryRepository.SearchAsync(query);
         }
 
         public Task<IEnumerable<Brewery>> GetByCityAsync(string city)
         {
+            if (string.IsNullOrWhiteSpace(city))
+                return Task.FromResult<IEnumerable<Brewery>>(Enumerable.Empty<Brewery>());
+                
             return _breweryRepository.GetByCityAsync(city);
         }
 
         public async Task<IEnumerable<BreweryAutocomplete>> AutocompleteAsync(string query)
         {
+            if (string.IsNullOrWhiteSpace(query))
+                return Enumerable.Empty<BreweryAutocomplete>();
+                
             return await _breweryRepository.AutocompleteAsync(query);
-        }
-
-        private IEnumerable<Brewery> ApplySorting(IEnumerable<Brewery> breweries, string? sortBy, double? lat, double? lng)
-        {
-            return sortBy?.ToLower() switch
-            {
-                "name" => breweries.OrderBy(b => b.Name),
-                "city" => breweries.OrderBy(b => b.City),
-                "distance" when lat.HasValue && lng.HasValue =>
-                    breweries.OrderBy(b => GeoHelper.GetDistance(lat.Value, lng.Value, b.Latitude, b.Longitude)),
-                _ => breweries.OrderBy(b => b.Name)
-            };
         }
     }
 }
